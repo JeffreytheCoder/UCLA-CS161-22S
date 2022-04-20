@@ -140,7 +140,7 @@
         ; if reaches final state, returns the entire path in reversed order
         ((final-state s) (reverse (cons s path)))
         ; else, recursively dfs with successor states and path added with current state
-        (t (mult-dfs (succ-fn s) (cons s path)))))
+        (t (mult-dfs (cons s path) (succ-fn s)))))
 
 ; Function execution examples
 
