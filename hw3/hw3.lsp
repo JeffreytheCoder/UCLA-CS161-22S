@@ -291,7 +291,7 @@
 	)
 );end defun
 
-(print (get-square p1 1 2))
+; (print (get-square p1 1 2))
 
 (defun set-square-col (row-list c val)
 	(cond
@@ -307,7 +307,7 @@
 	)
 )
 
-(print (set-square p1 1 2 0))
+; (print (set-square p1 1 2 0))
 
 ;
 ; Helper function of getKeeperPosition
@@ -344,7 +344,7 @@
 	)
   );end defun
 
-(print (getKeeperPosition p1 0))
+; (print (getKeeperPosition p1 0))
 
 ;
 ; cleanUpList (l)
@@ -396,7 +396,33 @@
   (goal-test-row s 0)
 );end defun
 
-(print (goal-test p1))
+
+; EXERCISE: Modify this function to return true (t)
+; if and only if s is a goal state of the game.
+; (neither any boxes nor the keeper is on a non-goal square)
+;
+; Currently, it always returns NIL. If A* is called with
+; this function as the goal testing function, A* will never
+; terminate until the whole search space is exhausted.
+;
+(defun goal-test-row (row-list)
+	(cond
+		((null (car row-list)) t)
+		; goal test not pass if keeper or box is not on goal
+		((or (isKeeper (car row-list)) (isBox (car row-list))) NIL)
+		(t (goal-test-row (cdr row-list)))
+	)
+)
+
+(defun goal-test (s)
+  (cond
+		((null (car s)) t) 
+		((null (goal-test-row (car s))) NIL) 
+		(t (goal-test (cdr s)))
+	)
+)
+
+; (print (goal-test p1))
 
 
 ; EXERCISE: Modify this function to return the list of 
@@ -540,19 +566,32 @@
   )
 )
 
-(print (next-states p1))
+; (print (next-states p1))
 
 ; EXERCISE: Modify this function to compute the trivial 
 ; admissible heuristic.
 ;
 (defun h0 (s)
-  )
+	0
+)
 
 ; EXERCISE: Modify this function to compute the 
 ; number of misplaced boxes in s.
 ;
+(defun count-box-col (L)
+	(cond
+		((null (car L)) 0)
+		((isBox (car L)) (+ 1 (count-box-col (cdr L))))
+		(t (count-box-col (cdr L)))
+	)
+)
+
 (defun h1 (s)
-  )
+	(cond
+		((null (car s)) 0)
+		(t (+ (count-box-col (car s)) (h1 (cdr s))))
+	)
+)
 
 ; EXERCISE: Modify this h2 function to compute an
 ; admissible heuristic val of s. 
@@ -562,9 +601,73 @@
 ; The Lisp 'time' function can be used to measure the 
 ; running time of a function call.
 ;
-(defun h2 (s)
-  )
+(defun get-boxes-pos-col (row-list r c)
+	(cond
+		((null row-list) nil)
+		((isBox (car row-list)) (cons (list r c) (get-boxes-pos-col (cdr row-list) r (+ c 1))))
+		(t (get-boxes-pos-col (cdr row-list) r (+ c 1)))
+	)
+)
 
+(defun get-boxes-pos (s r)
+	(cond
+		((null s) nil)
+		(t (append (get-boxes-pos-col (car s) r 0) (get-boxes-pos (cdr s) (+ r 1))))
+	)
+)
+
+(defun get-goals-pos-col (row-list r c)
+	(cond
+		((null row-list) nil)
+		((isStar (car row-list)) (cons (list r c) (get-goals-pos-col (cdr row-list) r (+ c 1))))
+		(t (get-goals-pos-col (cdr row-list) r (+ c 1)))
+	)
+)
+
+(defun get-goals-pos (s r)
+	(cond
+		((null s) nil)
+		(t (append (get-goals-pos-col (car s) r 0) (get-goals-pos (cdr s) (+ r 1))))
+	)
+)
+
+(defun get-distance (box goal)
+	(let 
+		((r1 (car box))
+		(c1 (cadr box))
+		(r2 (car goal))
+		(c2 (cadr goal)))
+		(+ (abs (- r1 r2)) (abs (- c1 c2)))
+	)
+)
+
+; get distances between a box and all goals
+(defun get-box-goals-distance (box-pos goals-pos)
+	(let* 
+		((goal-pos (car goals-pos))
+		(distance (get-distance box-pos goal-pos)))
+		(cond
+			((= (length goals-pos) 1) distance)
+			(t (+ distance (get-box-goals-distance box-pos (cdr goals-pos))))
+		)
+	)
+)
+
+; sum up distances between all boxes and all goals
+(defun get-boxes-goals-distance (boxes-pos goals-pos)
+	(cond
+		((null boxes-pos) 0)
+		(t (+ (get-box-goals-distance (car boxes-pos) goals-pos) (get-boxes-goals-distance (cdr boxes-pos) goals-pos)))
+	)
+)
+
+(defun h2 (s)
+	(let 
+		((boxes-pos (get-boxes-pos s 0))
+		(goals-pos (get-goals-pos s 0)))
+		(get-boxes-goals-distance boxes-pos goals-pos)
+	)
+)
 
 #|
  | Utility functions for printing states and moves.
@@ -643,3 +746,6 @@
     (sleep delay)
     );end dolist
   );end defun
+
+; (load-a-star)
+; (time (a* p15 #'goal-test #'next-states #'h2))
